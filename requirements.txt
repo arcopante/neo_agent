@@ -1,0 +1,28 @@
+# ══════════════════════════════════════════════
+# NEO Agent — Dependencias Python
+# Instalar con: pip install -r requirements.txt
+# ══════════════════════════════════════════════
+
+# ─── LangChain core ───────────────────────────
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-community>=0.3.0
+langgraph>=0.2.0                # Motor moderno del agente
+
+# ─── LLM Providers ────────────────────────────
+langchain-openai>=0.2.0         # Para OpenRouter, LM Studio y GPT-4
+# langchain-anthropic>=0.3.0   # Para Claude (directo)
+# langchain-google-genai>=2.0.0 # Para Gemini
+
+# ─── Herramientas ─────────────────────────────
+ddgs>=6.0.0                     # Búsqueda web (antes duckduckgo-search)
+requests>=2.31.0                # Peticiones HTTP
+
+# ─── Utilidades ───────────────────────────────
+python-dotenv>=1.0.0            # Leer .env
+rich>=13.0.0                    # Output bonito en terminal
+
+# ─── Telegram (opcional) ──────────────────────
+python-telegram-bot>=21.0        # Bot de Telegram
+# numexpr>=2.9.0                # Calculadora más segura
+# tavily-python>=0.3.0          # Búsqueda web premium

@@ -1,0 +1,33 @@
+# ── Entorno virtual ────────────────────────────────
+.venv/
+venv/
+env/
+
+# ── Configuración local con claves (NO subir) ──────
+config/settings.cfg
+.env
+
+# ── Memoria generada (opcional: comenta para versionar)
+memory/long_term.json
+memory/sessions/
+
+# ── Workspace generado ─────────────────────────────
+workspace/
+
+# ── Python cache ───────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# ── Editors ────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── macOS ──────────────────────────────────────────
+.DS_Store
