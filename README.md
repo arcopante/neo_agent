@@ -45,8 +45,10 @@ Funciona con cualquier modelo de lenguaje vía **OpenRouter** (Claude, GPT-4o, L
 - Python 3.11 o superior
 - Una API key de [OpenRouter](https://openrouter.ai) (o LM Studio en local)
 - Token de Telegram (opcional, para el bot)
-- `ffmpeg` instalado para transcripción de voz: `brew install ffmpeg`
-- `openai-whisper` para voz local — el setup lo pregunta al instalar
+- `ffmpeg` para transcripción de voz: `brew install ffmpeg`
+- Whisper para voz local — el setup pregunta qué backend instalar:
+  - Apple Silicon: `pip install mlx-whisper` ⚡
+  - CPU: `pip install openai-whisper`
 - [`uv`](https://github.com/astral-sh/uv) para gestión de dependencias (se instala automáticamente)
 
 ---
@@ -247,6 +249,12 @@ LLM_MAX_TOKENS=4096
 # ── Telegram (opcional) ────────────────────────────
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_ALLOWED_USERS=       # IDs separados por coma. Vacío = bot público.
+
+# ── Voz (Whisper) ──────────────────────────────────
+WHISPER_MODEL=small           # tiny | base | small | medium | large
+
+# ── macOS ──────────────────────────────────────────
+CALENDAR_DEFAULT=Trabajo      # Nombre exacto del calendario por defecto
 
 # ── Agente ─────────────────────────────────────────
 MEMORY_WINDOW=20              # Mensajes en memoria de trabajo

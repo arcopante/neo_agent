@@ -1,8 +1,10 @@
 # ══════════════════════════════════════════════════════════════
 # NEO Agent — Configuración centralizada
 #
-# Edita este fichero para cambiar el comportamiento del agente.
-# NO subas este fichero a git si contiene claves reales.
+# Copia este fichero como settings.cfg y rellena tus valores:
+#   cp config/settings.cfg.example config/settings.cfg
+#
+# settings.cfg está en .gitignore — tus claves nunca se subirán.
 # ══════════════════════════════════════════════════════════════
 
 
@@ -13,15 +15,15 @@ LLM_PROVIDER=openrouter
 # ─── OpenRouter ────────────────────────────────────────────────
 OPENROUTER_API_KEY=sk-or-v1-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-# Modelo de OpenRouter. Ejemplos:
-#   anthropic/claude-3.5-sonnet
-#   openai/gpt-4o
+# Modelo. Ejemplos:
+#   anthropic/claude-3.5-sonnet   ← recomendado, soporta visión
+#   openai/gpt-4o                 ← soporta visión
 #   meta-llama/llama-3.1-70b-instruct
 #   mistralai/mistral-large
 #   google/gemini-pro-1.5
 LLM_MODEL=anthropic/claude-3.5-sonnet
 
-# Nombre que se muestra en la cabecera X-Title (opcional, para stats en openrouter.ai)
+# Nombre que aparece en tus stats de openrouter.ai (opcional)
 OPENROUTER_APP_NAME=NEO Agent
 
 # ─── LM Studio (si LLM_PROVIDER=lmstudio) ─────────────────────
@@ -40,6 +42,21 @@ LLM_MAX_TOKENS=4096
 # ─── Telegram ──────────────────────────────────────────────────
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_ALLOWED_USERS=          # IDs separados por coma. Vacío = bot público.
+
+# ─── Voz (Whisper) ─────────────────────────────────────────────
+# Tamaño del modelo Whisper para transcripción de audio.
+# Más grande = más preciso pero más lento y más RAM.
+# Opciones: tiny | base | small | medium | large
+# Apple Silicon: instala mlx-whisper para aceleración por GPU
+# CPU:           instala openai-whisper
+WHISPER_MODEL=small
+
+# ─── macOS ─────────────────────────────────────────────────────
+# Calendario por defecto para crear eventos.
+# Usa el nombre exacto tal como aparece en la app Calendario.
+# Deja vacío para usar el primer calendario editable.
+# Puedes ver tus calendarios con: "¿qué calendarios tengo?"
+CALENDAR_DEFAULT=
 
 # ─── Agente ────────────────────────────────────────────────────
 MEMORY_WINDOW=20

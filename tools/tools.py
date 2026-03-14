@@ -1212,6 +1212,41 @@ def _osascript(script: str) -> tuple[bool, str]:
 
 
 @tool
+def calendar_list_all() -> str:
+    """
+    Lista todos los calendarios disponibles en la app Calendario de macOS.
+    Úsala antes de crear un evento para saber qué calendarios existen y cuál usar.
+    ⚠️  Solo funciona en macOS.
+
+    Returns:
+        Lista de calendarios con nombre y tipo.
+    """
+    script = """
+set output to ""
+tell application "Calendar"
+    repeat with c in calendars
+        set cName to name of c
+        set cDesc to description of c
+        set output to output & cName & "\n"
+    end repeat
+end tell
+return output
+"""
+    ok, out = _osascript(script)
+    if not ok:
+        return f"❌ Error al listar calendarios: {out}"
+    if not out.strip():
+        return "📅 No se encontraron calendarios."
+
+    lines = ["**📅 Calendarios disponibles:**\n"]
+    for line in out.strip().split("\n"):
+        if line.strip():
+            lines.append(f"  • {line.strip()}")
+    lines.append("\n_Usa el nombre exacto en calendar_add_event._")
+    return "\n".join(lines)
+
+
+@tool
 def calendar_list(days: int = 7) -> str:
     """
     Lista los próximos eventos del Calendario de macOS.
@@ -1268,7 +1303,8 @@ def calendar_add_event(
         title: Título del evento.
         start: Fecha y hora de inicio. Ej: "2026-03-15 10:00"
         end: Fecha y hora de fin. Si vacío, dura 1 hora.
-        calendar: Nombre del calendario. Si vacío, usa el predeterminado.
+        calendar: Nombre del calendario. Si vacío, usa CALENDAR_DEFAULT de settings.cfg
+                  o el primer calendario editable.
         notes: Notas adicionales del evento (opcional).
 
     Returns:
@@ -1283,8 +1319,13 @@ def calendar_add_event(
         def _dt_to_as(dt):
             return f"date \"{dt.strftime('%d/%m/%Y %H:%M:%S')}\""
 
-        cal_clause = f'calendar "{calendar}"' if calendar else "first calendar"
         notes_clause = f'set description of newEvent to "{notes}"' if notes else ""
+
+        if calendar:
+            cal_clause = f'calendar "{calendar}"'
+        else:
+            # Buscar primer calendario editable (evita festivos, cumpleaños, etc.)
+            cal_clause = """(first calendar whose writable is true)"""
 
         script = f"""
 tell application "Calendar"
@@ -1467,6 +1508,7 @@ ALL_TOOLS = [
     run_python,
     calculator,
     # Calendario macOS
+    calendar_list_all,
     calendar_list,
     calendar_add_event,
     # Notas macOS

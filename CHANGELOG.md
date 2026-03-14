@@ -89,3 +89,18 @@ Para usar transcripción de voz:
 brew install ffmpeg
 pip install openai-whisper
 ```
+
+## [1.2.1] - 2026-03-14
+
+### Corregido
+
+- **`calendar_add_event`** — formato de fecha corregido a `MM/DD/YYYY HH:MM:SS` para compatibilidad con AppleScript independientemente del locale del sistema
+- **`calendar_add_event`** — nuevo parámetro `CALENDAR_DEFAULT` en `settings.cfg` para evitar que los eventos se creen en un calendario inesperado
+- **Nueva herramienta `calendar_list_all`** — lista todos los calendarios con su estado de escritura para saber exactamente qué nombres usar
+- Warning de `resource_tracker` silenciado al cerrar con `/salir`
+
+### Añadido
+
+- `CALENDAR_DEFAULT` en `settings.cfg.example` — nombre del calendario por defecto para crear eventos
+- `WHISPER_MODEL` en `settings.cfg.example` — documentado con todas las opciones disponibles
+- `setup.sh` ahora pregunta entre `mlx-whisper` (Apple Silicon) y `openai-whisper` (CPU)
