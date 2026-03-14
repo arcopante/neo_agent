@@ -49,9 +49,9 @@ _load_settings()
 def _get_llm():
     """
     Inicializa el LLM según LLM_PROVIDER.
-    Soporta: lmstudio (default), anthropic, openai, google.
+    Soporta: openrouter (default), lmstudio, anthropic, openai, google.
     """
-    provider = os.getenv("LLM_PROVIDER", "lmstudio").lower()
+    provider = os.getenv("LLM_PROVIDER", "openrouter").lower()
 
     if provider == "openrouter":
         from langchain_openai import ChatOpenAI
@@ -118,7 +118,7 @@ def _get_llm():
     else:
         raise ValueError(
             f"LLM_PROVIDER desconocido: '{provider}'. "
-            "Opciones válidas: lmstudio, anthropic, openai, google"
+            "Opciones válidas: openrouter, lmstudio, anthropic, openai, google"
         )
 
 
