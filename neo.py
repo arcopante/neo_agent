@@ -19,10 +19,14 @@ from pathlib import Path
 ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT))
 
-# ── Silenciar logs de httpx/httpcore (polling de Telegram) ─────────────────
+# ── Silenciar logs y warnings innecesarios ────────────────────────────────────
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 logging.getLogger("telegram").setLevel(logging.WARNING)
+
+import warnings
+warnings.filterwarnings("ignore", message="resource_tracker")
+warnings.filterwarnings("ignore", message="FP16 is not supported on CPU")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
