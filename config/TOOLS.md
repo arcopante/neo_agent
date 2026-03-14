@@ -1,111 +1,40 @@
-# 🛠️ TOOLS — Referencia de Herramientas
+# Herramientas disponibles de NEO
 
-## Filosofía de uso de herramientas
+## 💻 Sistema
+- **system_info** — OS, CPU, RAM, disco, Python, hostname, IP, variables de entorno
+- **run_command** — Ejecuta comandos shell (bash/zsh) con timeout y lista de bloqueados
 
-> El agente usa herramientas solo cuando es necesario.
-> Si puede responder desde su conocimiento con certeza, no busca externamente.
-> Siempre informa qué herramienta usó y por qué.
+## 📁 Archivos
+- **read_file** — Lee el contenido de cualquier fichero de texto
+- **write_file** — Crea o sobreescribe ficheros (modo write o append)
+- **file_info** — Metadatos: tamaño, fechas, permisos, tipo MIME
+- **list_directory** — Lista cualquier directorio del sistema (no solo workspace)
+- **find_files** — Busca ficheros por nombre o extensión de forma recursiva
+- **copy_file** — Copia ficheros o directorios
+- **move_file** — Mueve o renombra ficheros y directorios
+- **delete_file** — Elimina ficheros o directorios vacíos
+- **compress_files** — Comprime en zip o tar.gz
+- **extract_archive** — Extrae zip, tar.gz, tar.bz2 y otros formatos
 
----
+## 📤 Telegram
+- **send_telegram_file** — Envía un fichero al chat de Telegram activo
 
-## `web_search` — Búsqueda web
+## 📋 Portapapeles
+- **clipboard_get** — Lee el contenido del portapapeles del sistema
+- **clipboard_set** — Copia texto al portapapeles
 
-**Cuándo usar**: Información reciente, eventos actuales, documentación específica.  
-**Proveedor**: DuckDuckGo (sin API key) / Tavily (con API key).  
-**Output**: Lista de resultados con título, URL y fragmento.
+## 🌐 Navegador y red
+- **open_url** — Abre una URL en el navegador predeterminado
+- **web_search** — Búsqueda en internet via DuckDuckGo
+- **http_request** — Peticiones GET/POST a APIs REST
 
-```
-Ejemplo de uso: "busca las últimas noticias sobre Python 3.14"
-```
+## 🐍 Código
+- **run_python** — Ejecuta fragmentos de Python con timeout de 30s
 
----
+## 🧮 Cálculo
+- **calculator** — Evaluación matemática segura y precisa
 
-## `read_file` — Leer archivo
-
-**Cuándo usar**: El usuario menciona un archivo o pide analizarlo.  
-**Permisos**: Solo rutas permitidas (configurable en `.env`).  
-**Formatos**: `.txt`, `.md`, `.py`, `.json`, `.csv`, `.yaml`, `.toml`, `.html`...
-
-```
-Ejemplo: "lee el archivo config.json y explícame la estructura"
-```
-
----
-
-## `write_file` — Escribir archivo
-
-**Cuándo usar**: Guardar resultados, crear scripts, exportar datos.  
-**⚠️ Requiere confirmación** si el archivo ya existe.  
-**Modos**: `write` (crea/sobreescribe) | `append` (añade al final)
-
-```
-Ejemplo: "guarda el resultado en output.txt"
-```
-
----
-
-## `list_directory` — Listar directorio
-
-**Cuándo usar**: El usuario quiere saber qué hay en una carpeta.  
-**Output**: Árbol de archivos y directorios.
-
-```
-Ejemplo: "¿qué archivos hay en mi carpeta de proyectos?"
-```
-
----
-
-## `run_python` — Ejecutar Python
-
-**Cuándo usar**: Cálculos, procesamiento de datos, scripts ad-hoc.  
-**⚠️ Requiere confirmación** antes de ejecutar.  
-**Entorno**: Proceso Python aislado con timeout de 30s.  
-**Acceso**: Solo al directorio de trabajo definido en `.env`.
-
-```
-Ejemplo: "analiza este CSV y dime cuántas filas tienen valores nulos"
-```
-
----
-
-## `http_request` — Petición HTTP
-
-**Cuándo usar**: Consultar APIs REST públicas o privadas.  
-**Métodos**: GET (por defecto), POST (con parámetros explícitos).  
-**Headers**: Configurables, incluye soporte para Bearer token.
-
-```
-Ejemplo: "consulta la API de wttr.in para saber el tiempo en Madrid"
-```
-
----
-
-## `calculator` — Calculadora
-
-**Cuándo usar**: Expresiones matemáticas, conversiones, estadísticas básicas.  
-**Motor**: `numexpr` / `eval` seguro.  
-**No usa**: LLM para matemáticas — usa cálculo real.
-
-```
-Ejemplo: "¿cuánto es 15% de 2847 más el IVA del 21%?"
-```
-
----
-
-## `memory_save` — Guardar en memoria
-
-**Cuándo usar**: El usuario pide recordar algo, o el agente detecta info relevante.
-
-```
-Ejemplo: "recuerda que mi base de datos está en localhost:5432"
-```
-
----
-
-## `memory_search` — Buscar en memoria
-
-**Cuándo usar**: El agente necesita contexto de sesiones anteriores.
-
-```
-Ejemplo: "¿qué habíamos dicho sobre el proyecto X?"
-```
+## 🧠 Memoria
+- **memory_save** — Guarda recuerdos persistentes por categoría
+- **memory_search** — Busca en la memoria a largo plazo
+- **memory_list** — Lista todos los recuerdos guardados

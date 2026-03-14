@@ -17,6 +17,7 @@ langchain-openai>=0.2.0         # Para OpenRouter, LM Studio y GPT-4
 # ─── Herramientas ─────────────────────────────
 ddgs>=6.0.0                     # Búsqueda web (antes duckduckgo-search)
 requests>=2.31.0                # Peticiones HTTP
+psutil>=5.9.0                   # Info de CPU, RAM y disco (system_info)
 
 # ─── Utilidades ───────────────────────────────
 python-dotenv>=1.0.0            # Leer .env

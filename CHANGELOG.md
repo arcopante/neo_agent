@@ -21,3 +21,45 @@ Primera release pública de NEO.
 - Personalización sin código mediante ficheros Markdown en `config/` (SOUL, IDENTITY, USER, SYSTEM_PROMPT)
 - Scripts `setup.sh` y `start.sh` para instalación y arranque en un solo paso
 - Detección automática de modo al arrancar (terminal vs ambos según si hay token de Telegram)
+
+## [1.0.1] - 2026-03-14
+
+### Corregido
+
+- **Spam de logs** — silenciados `httpx`, `httpcore` y `telegram` en nivel INFO; el polling de Telegram ya no llena la consola de peticiones HTTP
+- **`/salir` no funcionaba en terminal** — el comando no salía del proceso; ahora llama a `sys.exit(0)` correctamente
+- **Comandos con o sin barra** — el terminal acepta tanto `salir` como `/salir`; el banner y la ayuda muestran la barra `/` de forma consistente
+- **Referencias a LM Studio** en mensajes de error, `/estado` y configuración — ahora muestran los valores reales del proveedor activo
+- **Default de proveedor** cambiado de `lmstudio` a `openrouter` en `core/agent.py`
+- **Comentarios inline en settings.cfg** — el parser de `start.sh` ahora elimina correctamente los comentarios `# ...` al leer los valores
+- **Auto-detección de modo `ambos`** — el modo por defecto en `start.sh` pasa a ser `auto` para evitar conflictos con la detección de token
+
+### Eliminado
+
+- `main.py` y `telegram_bot.py` — ficheros duplicados; toda la lógica vive en `neo.py`
+
+## [1.1.0] - 2026-03-14
+
+### Añadido
+
+- **`system_info`** — información completa del sistema: OS, CPU, RAM, disco, Python, hostname, IP y variables de entorno. Requiere `psutil` (incluido en requirements)
+- **`run_command`** — ejecuta comandos shell arbitrarios con timeout y lista negra de comandos destructivos
+- **`file_info`** — metadatos detallados de cualquier fichero: tamaño, fechas, permisos y tipo MIME
+- **`find_files`** — búsqueda recursiva de ficheros por nombre o extensión en cualquier ruta del sistema
+- **`copy_file`** — copia ficheros o directorios completos
+- **`move_file`** — mueve o renombra ficheros y directorios
+- **`delete_file`** — elimina ficheros o directorios vacíos con confirmación
+- **`compress_files`** — comprime en zip o tar.gz
+- **`extract_archive`** — extrae zip, tar.gz, tar.bz2 y otros formatos
+- **`send_telegram_file`** — envía cualquier fichero al chat de Telegram activo
+- **`clipboard_get`** — lee el contenido del portapapeles del sistema
+- **`clipboard_set`** — copia texto al portapapeles
+- **`open_url`** — abre URLs en el navegador predeterminado
+- `psutil>=5.9.0` añadido a `requirements.txt`
+
+### Mejorado
+
+- **`list_directory`** — ahora opera en cualquier ruta del sistema (no solo workspace), muestra fecha de modificación y distingue carpetas de ficheros
+- **`_resolve_path`** — expande correctamente `~` en todas las rutas
+- README actualizado con las 23 herramientas, nuevos ejemplos y badge de Python 3.11+
+- `config/TOOLS.md` actualizado con el catálogo completo de herramientas
