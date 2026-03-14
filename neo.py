@@ -404,6 +404,146 @@ def run_telegram(stop_event: threading.Event = None):
                 parse_mode=ParseMode.HTML,
             )
 
+
+    # ── Handler de voz ────────────────────────────────────────────────────────
+
+    async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Recibe audios de voz, los transcribe con Whisper y los procesa como texto."""
+        uid = update.effective_user.id
+        if not is_allowed(uid):
+            await update.message.reply_text("⛔ No tienes acceso a este bot.")
+            return
+
+        await update.message.chat.send_action(ChatAction.TYPING)
+
+        try:
+            import tempfile, os as _os
+            voice = update.message.voice or update.message.audio
+            if not voice:
+                await update.message.reply_text("❌ No se pudo obtener el audio.")
+                return
+
+            # Descargar el archivo de voz
+            tg_file = await context.bot.get_file(voice.file_id)
+            with tempfile.NamedTemporaryFile(suffix=".ogg", delete=False) as tmp:
+                tmp_path = tmp.name
+            await tg_file.download_to_drive(tmp_path)
+
+            # Transcribir con MLX Whisper (Apple Silicon) o Whisper CPU
+            try:
+                from tools.tools import _transcribe_audio
+                transcription, backend, _ = _transcribe_audio(tmp_path, language="es")
+            except ImportError as ie:
+                _os.unlink(tmp_path)
+                await update.message.reply_text(
+                    f"⚠️ Whisper no disponible: <code>{ie}</code>",
+                    parse_mode=ParseMode.HTML,
+                )
+                return
+            except Exception as we:
+                _os.unlink(tmp_path)
+                await update.message.reply_text(
+                    f"❌ Error al transcribir: <code>{str(we)[:300]}</code>",
+                    parse_mode=ParseMode.HTML,
+                )
+                return
+            finally:
+                try:
+                    _os.unlink(tmp_path)
+                except Exception:
+                    pass
+
+            if not transcription:
+                await update.message.reply_text("⚠️ No se detectó habla en el audio.")
+                return
+
+            # Confirmar transcripción
+            await update.message.reply_text(
+                f"🎙️ <i>Transcripción:</i> {transcription}",
+                parse_mode=ParseMode.HTML,
+            )
+
+            # Procesar como mensaje normal
+            agent = get_agent(uid)
+            user_sessions[uid].append({"role": "user", "content": transcription})
+
+            result = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: agent.invoke({"input": transcription})
+            )
+            output = result.get("output", "Sin respuesta.")
+            steps = result.get("intermediate_steps", [])
+            header = f"<i>🔧 {', '.join(a.tool for a, _ in steps)}</i>\n\n" if steps else ""
+            await _send_long(update, header + _md_to_html(output), ParseMode.HTML)
+            user_sessions[uid].append({"role": "assistant", "content": output})
+
+        except Exception as e:
+            logger.error(f"Error en handle_voice {uid}: {e}", exc_info=True)
+            await update.message.reply_text(f"❌ Error al procesar audio: {str(e)[:200]}")
+
+    # ── Handler de imágenes ───────────────────────────────────────────────────
+
+    async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Recibe imágenes, las analiza con visión y responde."""
+        uid = update.effective_user.id
+        if not is_allowed(uid):
+            await update.message.reply_text("⛔ No tienes acceso a este bot.")
+            return
+
+        await update.message.chat.send_action(ChatAction.TYPING)
+
+        try:
+            import tempfile, os as _os, base64 as _b64
+
+            # Obtener la foto en mejor calidad
+            photo = update.message.photo[-1]
+            caption = update.message.caption or "Describe esta imagen en detalle."
+
+            tg_file = await context.bot.get_file(photo.file_id)
+            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+                tmp_path = tmp.name
+            await tg_file.download_to_drive(tmp_path)
+
+            try:
+                api_key = _os.getenv("OPENROUTER_API_KEY", "")
+                model = _os.getenv("LLM_MODEL", "anthropic/claude-3.5-sonnet")
+
+                if not api_key:
+                    await update.message.reply_text(
+                        "❌ OPENROUTER_API_KEY no configurada. La visión requiere OpenRouter."
+                    )
+                    return
+
+                image_data = _b64.b64encode(open(tmp_path, "rb").read()).decode("utf-8")
+
+                import requests as _req
+                resp = _req.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                    json={
+                        "model": model,
+                        "messages": [{
+                            "role": "user",
+                            "content": [
+                                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}},
+                                {"type": "text", "text": caption},
+                            ],
+                        }],
+                        "max_tokens": 1024,
+                    },
+                    timeout=30,
+                )
+                resp.raise_for_status()
+                answer = resp.json()["choices"][0]["message"]["content"]
+
+            finally:
+                _os.unlink(tmp_path)
+
+            await _send_long(update, _md_to_html(answer), ParseMode.HTML)
+
+        except Exception as e:
+            logger.error(f"Error en handle_photo {uid}: {e}", exc_info=True)
+            await update.message.reply_text(f"❌ Error al analizar imagen: {str(e)[:200]}")
+
     # ── Construir app ──────────────────────────────────────────────────────────
 
     app = Application.builder().token(token).build()
@@ -414,6 +554,8 @@ def run_telegram(stop_event: threading.Event = None):
     app.add_handler(CommandHandler("ayuda",   cmd_ayuda))
     app.add_handler(CommandHandler("salir",   cmd_salir))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, handle_voice))
+    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
 
     async def post_init(application):
         await application.bot.set_my_commands([

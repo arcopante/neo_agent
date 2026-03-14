@@ -49,6 +49,9 @@ if [ ! -d "$VENV_DIR" ]; then
     exit 1
 fi
 
+# Asegurar que uv está en PATH (instalado por brew o astral)
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:$PATH"
+
 source "$VENV_DIR/bin/activate"
 
 # ── Verificar token si modo Telegram ──────────────

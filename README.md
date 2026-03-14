@@ -5,6 +5,7 @@
 ### Agente de IA personal con ejecución real de acciones
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://python.org)
+[![macOS](https://img.shields.io/badge/macOS-primary-000000?logo=apple&logoColor=white)](https://www.apple.com/macos)
 [![LangChain](https://img.shields.io/badge/LangChain-0.3+-1C3C3C?logo=chainlink&logoColor=white)](https://langchain.com)
 [![LangGraph](https://img.shields.io/badge/LangGraph-ReAct-FF6B35)](https://langchain-ai.github.io/langgraph)
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-compatible-6366F1)](https://openrouter.ai)
@@ -14,7 +15,9 @@
 
 ---
 
-NEO es un agente de IA personal que entiende lenguaje natural y ejecuta acciones reales sobre el sistema: busca en internet, gestiona archivos, corre código, consulta APIs, controla el portapapeles, envía ficheros por Telegram y recuerda cosas entre sesiones.
+NEO es un agente de IA personal que entiende lenguaje natural y ejecuta acciones reales sobre el sistema: busca en internet, gestiona archivos, corre código, consulta APIs, analiza imágenes, transcribe voz, controla el portapapeles, envía ficheros por Telegram, crea eventos y notas en macOS y recuerda cosas entre sesiones.
+
+> **Desarrollado para macOS.** Las herramientas de Calendario, Notas y notificaciones del sistema usan AppleScript y no funcionarán en Linux.
 
 Funciona con cualquier modelo de lenguaje vía **OpenRouter** (Claude, GPT-4o, Llama, Mistral, Gemini…) o en local con **LM Studio**. Toda la configuración vive en un único fichero `config/settings.cfg`, sin tocar código. Disponible en terminal y como **bot de Telegram**.
 
@@ -23,8 +26,12 @@ Funciona con cualquier modelo de lenguaje vía **OpenRouter** (Claude, GPT-4o, L
 ## Características
 
 - **Multi-modelo** — Cambia entre Claude, GPT-4o, Llama, Mistral o cualquier modelo de OpenRouter con una línea en la configuración
-- **23 herramientas reales** — Sistema, archivos, shell, búsqueda web, HTTP, código Python, calculadora, portapapeles, navegador y Telegram
+- **32 herramientas reales** — Sistema, archivos, shell, visión, voz, búsqueda web, HTTP, código Python, calculadora, portapapeles, navegador, Telegram, Calendario y Notas de macOS
 - **Acceso completo al sistema** — Lista, busca, copia, mueve, comprime y elimina ficheros en cualquier ruta, no solo en el workspace
+- **Visión** — Analiza imágenes enviadas por Telegram o rutas locales con modelos multimodales (Claude 3, GPT-4o)
+- **Voz con Whisper local** — Transcribe mensajes de voz de Telegram o archivos de audio directamente en tu máquina, sin APIs externas
+- **Notificaciones proactivas** — Avisa al usuario vía notificación del sistema macOS y/o Telegram cuando termina una tarea
+- **Calendario y Notas de macOS** — Lee, crea y busca eventos y notas usando AppleScript nativo, sin permisos especiales
 - **Envío de ficheros por Telegram** — Comparte documentos, logs o cualquier archivo directamente desde una conversación
 - **Memoria persistente** — Recuerda preferencias y contexto entre sesiones mediante `memory/long_term.json`
 - **Dos interfaces** — Terminal interactiva y bot de Telegram, pueden correr simultáneamente
@@ -38,6 +45,9 @@ Funciona con cualquier modelo de lenguaje vía **OpenRouter** (Claude, GPT-4o, L
 - Python 3.11 o superior
 - Una API key de [OpenRouter](https://openrouter.ai) (o LM Studio en local)
 - Token de Telegram (opcional, para el bot)
+- `ffmpeg` instalado para transcripción de voz: `brew install ffmpeg`
+- `openai-whisper` para voz local — el setup lo pregunta al instalar
+- [`uv`](https://github.com/astral-sh/uv) para gestión de dependencias (se instala automáticamente)
 
 ---
 
@@ -48,7 +58,7 @@ Funciona con cualquier modelo de lenguaje vía **OpenRouter** (Claude, GPT-4o, L
 git clone https://github.com/arcopante/neo_agent.git
 cd neo_agent
 
-# 2. Ejecutar el setup (crea .venv e instala dependencias)
+# 2. Ejecutar el setup (instala uv si es necesario, crea .venv e instala dependencias)
 bash setup.sh
 
 # 3. Configurar
@@ -97,6 +107,10 @@ consulta la API wttr.in para Madrid y dime el tiempo
 recuerda que mis proyectos están en ~/dev
 copia esto al portapapeles: "hola mundo"
 abre https://openrouter.ai en el navegador
+avísame cuando termines esta tarea larga
+¿qué hay en esta foto? [adjuntando imagen]
+¿qué reuniones tengo esta semana?
+crea una nota "Ideas proyecto" con este contenido
 ```
 
 ### Comandos de terminal
@@ -112,7 +126,7 @@ abre https://openrouter.ai en el navegador
 
 ---
 
-## Herramientas (23)
+## Herramientas (32)
 
 ### 💻 Sistema
 | Herramienta | Descripción |
@@ -151,6 +165,34 @@ abre https://openrouter.ai en el navegador
 | `open_url` | Abre una URL en el navegador predeterminado |
 | `web_search` | Búsqueda en internet via DuckDuckGo |
 | `http_request` | Peticiones GET/POST a APIs REST |
+
+### 🔔 Notificaciones
+| Herramienta | Descripción |
+|---|---|
+| `notify` | Notificación del sistema macOS + Telegram ⚠️ macOS |
+
+### 👁️ Visión
+| Herramienta | Descripción |
+|---|---|
+| `analyze_image` | Analiza imágenes (ruta local o URL) con modelos multimodales |
+
+### 🎙️ Voz
+| Herramienta | Descripción |
+|---|---|
+| `transcribe_audio` | Transcribe audio a texto con Whisper local |
+
+### 📅 Calendario macOS
+| Herramienta | Descripción |
+|---|---|
+| `calendar_list` | Lista los próximos eventos del Calendario ⚠️ macOS |
+| `calendar_add_event` | Crea un nuevo evento en el Calendario ⚠️ macOS |
+
+### 📝 Notas macOS
+| Herramienta | Descripción |
+|---|---|
+| `notes_list` | Lista las notas recientes de la app Notas ⚠️ macOS |
+| `notes_create` | Crea una nueva nota ⚠️ macOS |
+| `notes_search` | Busca notas por texto ⚠️ macOS |
 
 ### 🐍 Código y cálculo
 | Herramienta | Descripción |

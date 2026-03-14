@@ -63,3 +63,29 @@ Primera release pública de NEO.
 - **`_resolve_path`** — expande correctamente `~` en todas las rutas
 - README actualizado con las 23 herramientas, nuevos ejemplos y badge de Python 3.11+
 - `config/TOOLS.md` actualizado con el catálogo completo de herramientas
+
+## [1.2.0] - 2026-03-14
+
+### Añadido
+
+- **`notify`** — notificación proactiva vía osascript (macOS) + Telegram simultáneamente. El agente puede avisar al usuario cuando termina una tarea larga sin que tenga que estar mirando la pantalla
+- **`analyze_image`** — análisis de imágenes con modelos multimodales (Claude 3, GPT-4o) vía OpenRouter. Acepta rutas locales y URLs
+- **Handler de imágenes en Telegram** — envía una foto al bot y Neo la analiza directamente con visión. El caption de la foto se usa como pregunta
+- **`transcribe_audio`** — transcripción de audio a texto con Whisper ejecutándose en local, sin APIs externas. Soporta mp3, wav, ogg, m4a, flac
+- **Handler de voz en Telegram** — los mensajes de voz se transcriben automáticamente con Whisper y se procesan como texto normal
+- **`calendar_list`** — lista los próximos eventos del Calendario de macOS vía AppleScript
+- **`calendar_add_event`** — crea eventos en el Calendario de macOS con título, fecha/hora, duración y notas
+- **`notes_list`** — lista las notas recientes de la app Notas de macOS
+- **`notes_create`** — crea nuevas notas en la app Notas de macOS con título, cuerpo y carpeta
+- **`notes_search`** — busca notas por texto en título y contenido
+- `WHISPER_MODEL` añadido a `settings.cfg` (opciones: tiny, base, small, medium, large)
+- Badge de macOS en el README
+- Nota de compatibilidad: desarrollado para macOS, las herramientas de sistema nativo no funcionan en Linux
+
+### Notas de instalación
+
+Para usar transcripción de voz:
+```bash
+brew install ffmpeg
+pip install openai-whisper
+```
