@@ -103,16 +103,24 @@ def _terminal_loop(stop_event: threading.Event = None):
     session_messages = []
     session_dir = ROOT / "memory" / "sessions"
 
-    while True:
-        if stop_event and stop_event.is_set():
-            break
+    # Hilo vigilante: si stop_event se activa mientras input() está bloqueado,
+    # os._exit() mata el proceso completo sin esperar nada
+    if stop_event:
+        import threading as _threading
+        def _watchdog():
+            stop_event.wait()
+            print("\n🛑 Telegram detenido. Cerrando terminal...")
+            save_session(session_messages, session_dir)
+            os._exit(0)
+        _threading.Thread(target=_watchdog, daemon=True, name="neo-watchdog").start()
 
+    while True:
         try:
             user_input = input("\n👤 Tú: ").strip()
         except (KeyboardInterrupt, EOFError):
             print("\n\n👋 ¡Hasta luego!")
             save_session(session_messages, session_dir)
-            break
+            os._exit(0)
 
         if not user_input:
             continue
@@ -125,7 +133,7 @@ def _terminal_loop(stop_event: threading.Event = None):
             save_session(session_messages, session_dir)
             if stop_event:
                 stop_event.set()
-            sys.exit(0)
+            os._exit(0)
 
         if cmd == "ayuda":
             print(_help_text())
@@ -230,7 +238,7 @@ def _config_text():
 # MODO TELEGRAM
 # ══════════════════════════════════════════════════════════════════════════════
 
-def run_telegram():
+def run_telegram(stop_event: threading.Event = None):
     check_dependencies()
 
     try:
@@ -353,7 +361,12 @@ def run_telegram():
             return
         await update.message.reply_text("🛑 Apagando NEO... hasta pronto.")
         logger.info(f"Apagado solicitado por usuario {update.effective_user.id}")
-        asyncio.get_event_loop().call_later(1, context.application.stop)
+        if stop_event:
+            stop_event.set()
+        async def _stop():
+            await asyncio.sleep(1)
+            await context.application.stop()
+        asyncio.create_task(_stop())
 
     async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         uid = update.effective_user.id
@@ -428,10 +441,14 @@ def _telegram_run(stop_event: threading.Event = None):
     except ImportError:
         print("\n❌ python-telegram-bot no está instalado. Ejecuta: pip install python-telegram-bot\n")
         return
-    app = run_telegram()
+    app = run_telegram(stop_event)
     if app is None:
         return
     app.run_polling(allowed_updates=TelegramUpdate.ALL_TYPES)
+    # Si llegamos aquí es porque el bot paró (ej: /salir desde Telegram)
+    if stop_event:
+        stop_event.set()
+    sys.exit(0)
 
 
 # ── Helpers Telegram ──────────────────────────────────────────────────────────
