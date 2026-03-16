@@ -158,7 +158,31 @@ class NeoAgent:
         # Ventana deslizante
         window = self.history[-(self.window_size * 2):]
 
-        result = self.graph.invoke({"messages": window})
+        try:
+            result = self.graph.invoke({"messages": window})
+        except Exception as e:
+            err = str(e)
+            # Error de contexto excedido — reducir ventana y reintentar
+            if "context length" in err or "maximum context" in err or "131" in err:
+                print("⚠️  Contexto excedido — reduciendo ventana y reintentando...")
+                # Reintentar solo con los últimos 4 mensajes
+                fallback_window = self.history[-4:]
+                try:
+                    result = self.graph.invoke({"messages": fallback_window})
+                except Exception as e2:
+                    from langchain_core.messages import AIMessage as _AI
+                    msg = (
+                        "⚠️ La conversación ha superado el límite de contexto del modelo.\n\n"
+                        "Soluciones:\n"
+                        "• Escribe `/reset` para iniciar una conversación nueva\n"
+                        "• Reduce `MEMORY_WINDOW` en config/settings.cfg\n"
+                        "• Reduce `LLM_MAX_TOKENS` en config/settings.cfg\n"
+                        f"• Usa un modelo con más contexto (ej: `openai/gpt-4o`)"
+                    )
+                    self.history.append(_AI(content=msg))
+                    return {"output": msg, "intermediate_steps": []}
+            else:
+                raise
 
         # Extraer respuesta final
         messages = result.get("messages", [])
