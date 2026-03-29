@@ -548,6 +548,113 @@ def run_telegram(stop_event: threading.Event = None):
             logger.error(f"Error en handle_photo {uid}: {e}", exc_info=True)
             await update.message.reply_text(f"❌ Error al analizar imagen: {str(e)[:200]}")
 
+
+    async def cmd_cron(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handler para /cron <horario> <comando> — añade una tarea programada."""
+        if not is_allowed(update.effective_user.id):
+            await update.message.reply_text("⛔ No tienes acceso a este bot.")
+            return
+
+        from core.cron import cron_add, schedule_description, type_icon
+
+        args = " ".join(context.args).strip() if context.args else ""
+        if not args:
+            await update.message.reply_text(
+                "📋 <b>Uso de /cron:</b>\n\n"
+                "<code>/cron HH:MM texto</code> — 🔔 Notificación fija\n"
+                "<code>/cron HH:MM llm: prompt</code> — 🤖 LLM genera el mensaje\n"
+                "<code>/cron HH:MM shell: cmd</code> — ⚙️ Ejecuta un comando\n\n"
+                "<b>Formatos de horario:</b>\n"
+                "  <code>09:00</code>  → diario a esa hora\n"
+                "  <code>*/30m</code> → cada 30 minutos\n"
+                "  <code>*/2h</code>  → cada 2 horas\n\n"
+                "<b>Ejemplos:</b>\n"
+                "  <code>/cron 09:00 Buenos días!</code>\n"
+                "  <code>/cron */1h llm: Dame un consejo aleatorio</code>\n"
+                "  <code>/cron 08:00 shell: ~/scripts/backup.sh</code>",
+                parse_mode=ParseMode.HTML,
+            )
+            return
+
+        # Separar horario del resto
+        parts = args.split(None, 1)
+        if len(parts) < 2:
+            await update.message.reply_text(
+                "❌ Falta el comando. Uso: <code>/cron &lt;horario&gt; &lt;texto|llm:|shell:&gt;</code>",
+                parse_mode=ParseMode.HTML,
+            )
+            return
+
+        schedule_str, command = parts[0], parts[1]
+
+        try:
+            task = cron_add(schedule_str, command)
+            icon = type_icon(task["type"])
+            desc = schedule_description(task["schedule"])
+            await update.message.reply_text(
+                f"✅ Tarea creada <b>[{task['id']}]</b>\n\n"
+                f"{icon} <b>Tipo:</b> {task['type']}\n"
+                f"⏰ <b>Horario:</b> {desc}\n"
+                f"📝 <b>Contenido:</b> <code>{task['content']}</code>",
+                parse_mode=ParseMode.HTML,
+            )
+        except ValueError as e:
+            await update.message.reply_text(f"❌ {e}", parse_mode=ParseMode.HTML)
+
+    async def cmd_cronlist(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handler para /cronlist — lista todas las tareas programadas."""
+        if not is_allowed(update.effective_user.id):
+            await update.message.reply_text("⛔ No tienes acceso a este bot.")
+            return
+
+        from core.cron import cron_list, schedule_description, type_icon
+
+        crons = cron_list()
+        if not crons:
+            await update.message.reply_text("📭 No hay tareas programadas.")
+            return
+
+        lines = [f"<b>⏰ Tareas programadas ({len(crons)})</b>\n"]
+        for t in crons:
+            icon = type_icon(t["type"])
+            desc = schedule_description(t["schedule"])
+            last = t["last_run"][:16].replace("T", " ") if t["last_run"] else "nunca"
+            lines.append(
+                f"{icon} <b>[{t['id']}]</b> <code>{t['schedule_str']}</code> — {desc}\n"
+                f"   📝 {t['content'][:60]}{'...' if len(t['content']) > 60 else ''}\n"
+                f"   🕐 Última ejecución: {last} · Total: {t.get('run_count', 0)}\n"
+            )
+        await _send_long(update, "\n".join(lines), ParseMode.HTML)
+
+    async def cmd_crondel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handler para /crondel <id> — elimina una tarea."""
+        if not is_allowed(update.effective_user.id):
+            await update.message.reply_text("⛔ No tienes acceso a este bot.")
+            return
+
+        from core.cron import cron_delete
+
+        task_id = context.args[0].upper() if context.args else ""
+        if not task_id:
+            await update.message.reply_text("❌ Uso: <code>/crondel &lt;ID&gt;</code>", parse_mode=ParseMode.HTML)
+            return
+
+        if cron_delete(task_id):
+            await update.message.reply_text(f"✅ Tarea <b>[{task_id}]</b> eliminada.", parse_mode=ParseMode.HTML)
+        else:
+            await update.message.reply_text(f"❌ No se encontró la tarea <b>[{task_id}]</b>.", parse_mode=ParseMode.HTML)
+
+    async def cmd_cronclear(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handler para /cronclear — elimina todas las tareas."""
+        if not is_allowed(update.effective_user.id):
+            await update.message.reply_text("⛔ No tienes acceso a este bot.")
+            return
+
+        from core.cron import cron_clear
+
+        n = cron_clear()
+        await update.message.reply_text(f"🗑️ {n} tarea(s) eliminada(s).")
+
     # ── Construir app ──────────────────────────────────────────────────────────
 
     app = Application.builder().token(token).build()
@@ -556,7 +663,11 @@ def run_telegram(stop_event: threading.Event = None):
     app.add_handler(CommandHandler("memoria", cmd_memoria))
     app.add_handler(CommandHandler("estado",  cmd_estado))
     app.add_handler(CommandHandler("ayuda",   cmd_ayuda))
-    app.add_handler(CommandHandler("salir",   cmd_salir))
+    app.add_handler(CommandHandler("salir",      cmd_salir))
+    app.add_handler(CommandHandler("cron",       cmd_cron))
+    app.add_handler(CommandHandler("cronlist",   cmd_cronlist))
+    app.add_handler(CommandHandler("crondel",    cmd_crondel))
+    app.add_handler(CommandHandler("cronclear",  cmd_cronclear))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, handle_voice))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
@@ -568,8 +679,26 @@ def run_telegram(stop_event: threading.Event = None):
             BotCommand("memoria", "Ver recuerdos guardados"),
             BotCommand("estado",  "Estado del agente y modelo activo"),
             BotCommand("reset",   "Reiniciar conversación"),
-            BotCommand("salir",   "Apagar el agente"),
+            BotCommand("salir",      "Apagar el agente"),
+            BotCommand("cron",       "Añadir tarea programada"),
+            BotCommand("cronlist",   "Ver tareas programadas"),
+            BotCommand("crondel",    "Eliminar tarea por ID"),
+            BotCommand("cronclear",  "Borrar todas las tareas"),
         ])
+        # Arrancar el scheduler de crons
+        from core.cron import cron_loop
+        async def _send_cron_msg(text):
+            raw = os.getenv("TELEGRAM_ALLOWED_USERS", "").strip()
+            if raw:
+                cid = raw.split(",")[0].strip()
+                try:
+                    await application.bot.send_message(chat_id=cid, text=text, parse_mode="HTML")
+                except Exception as ce:
+                    logger.error(f"Error enviando cron msg: {ce}")
+        def _get_agent():
+            # Devuelve el agente del primer usuario activo
+            return next(iter(user_agents.values()), None)
+        asyncio.create_task(cron_loop(_send_cron_msg, _get_agent, stop_event))
 
     app.post_init = post_init
 

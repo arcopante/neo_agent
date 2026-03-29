@@ -104,3 +104,18 @@ pip install openai-whisper
 - `CALENDAR_DEFAULT` en `settings.cfg.example` — nombre del calendario por defecto para crear eventos
 - `WHISPER_MODEL` en `settings.cfg.example` — documentado con todas las opciones disponibles
 - `setup.sh` ahora pregunta entre `mlx-whisper` (Apple Silicon) y `openai-whisper` (CPU)
+
+## [1.3.0] - 2026-03-14
+
+### Añadido
+
+- **Sistema de crons** — tareas programadas persistentes gestionadas desde Telegram
+  - `/cron HH:MM texto` — notificación de texto fijo a una hora diaria
+  - `/cron */Nm llm: prompt` — el LLM genera el mensaje cada N minutos
+  - `/cron */Nh shell: cmd` — ejecuta un comando o script cada N horas
+  - `/cronlist` — lista todas las tareas con icono de tipo, última ejecución y contador
+  - `/crondel <ID>` — elimina una tarea por su ID
+  - `/cronclear` — borra todas las tareas
+- Las tareas persisten entre reinicios en `memory/crons.json`
+- El scheduler comprueba tareas cada 30 segundos
+- Los mensajes de cron se envían al primer usuario autorizado configurado en `TELEGRAM_ALLOWED_USERS`

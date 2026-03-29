@@ -59,7 +59,9 @@ WHISPER_MODEL=small
 CALENDAR_DEFAULT=
 
 # ─── Agente ────────────────────────────────────────────────────
-MEMORY_WINDOW=20
+# Mensajes del historial que se envían en cada petición.
+# Reducir si el modelo da errores de contexto excedido.
+MEMORY_WINDOW=15
 AGENT_VERBOSE=false              # true → muestra llamadas a herramientas
 AGENT_DEBUG=false
 AGENT_MAX_ITERATIONS=10
