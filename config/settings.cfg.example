@@ -30,6 +30,9 @@ OPENROUTER_APP_NAME=NEO Agent
 LMSTUDIO_BASE_URL=http://localhost:1234/v1
 LMSTUDIO_TOOL_MODE=auto          # auto | prompt
 
+# ─── Ollama (si LLM_PROVIDER=ollama) ──────────────────────────
+OLLAMA_BASE_URL=http://localhost:11434/v1
+
 # ─── Otros proveedores ─────────────────────────────────────────
 ANTHROPIC_API_KEY=
 OPENAI_API_KEY=

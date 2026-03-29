@@ -49,7 +49,7 @@ _load_settings()
 def _get_llm():
     """
     Inicializa el LLM según LLM_PROVIDER.
-    Soporta: openrouter (default), lmstudio, anthropic, openai, google.
+    Soporta: openrouter (default), lmstudio, ollama, anthropic, openai, google.
     """
     provider = os.getenv("LLM_PROVIDER", "openrouter").lower()
 
@@ -86,7 +86,19 @@ def _get_llm():
             base_url=base_url,
             api_key="lm-studio",
             temperature=float(os.getenv("LLM_TEMPERATURE", "0.3")),
-            max_tokens=int(os.getenv("LLM_MAX_TOKENS", "4096")),
+            max_tokens=int(os.getenv("LLM_MAX_TOKENS", "2048")),
+        )
+
+    elif provider == "ollama":
+        from langchain_openai import ChatOpenAI
+        base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+        model = os.getenv("LLM_MODEL", "llama3.1")
+        return ChatOpenAI(
+            model=model,
+            base_url=base_url,
+            api_key="ollama",
+            temperature=float(os.getenv("LLM_TEMPERATURE", "0.3")),
+            max_tokens=int(os.getenv("LLM_MAX_TOKENS", "2048")),
         )
 
     elif provider == "anthropic":
@@ -118,7 +130,7 @@ def _get_llm():
     else:
         raise ValueError(
             f"LLM_PROVIDER desconocido: '{provider}'. "
-            "Opciones válidas: openrouter, lmstudio, anthropic, openai, google"
+            "Opciones válidas: openrouter, lmstudio, ollama, anthropic, openai, google"
         )
 
 

@@ -119,3 +119,16 @@ pip install openai-whisper
 - Las tareas persisten entre reinicios en `memory/crons.json`
 - El scheduler comprueba tareas cada 30 segundos
 - Los mensajes de cron se envían al primer usuario autorizado configurado en `TELEGRAM_ALLOWED_USERS`
+
+## [1.4.0] - 2026-03-14
+
+### Añadido
+
+- **Gestión dinámica del LLM** — cambia proveedor y modelo en caliente sin reiniciar
+  - `/motorllm <proveedor>` — cambia entre openrouter, openai, anthropic, google, lmstudio, ollama
+  - `/listmodels` — lista modelos en LM Studio/Ollama (con indicador 🟢 en memoria / ⚪ disponible) o ejemplos para proveedores remotos
+  - `/load <modelo>` — carga un modelo en LM Studio/Ollama o cambia el modelo en proveedores externos
+  - `/unload <modelo>` — descarga un modelo de memoria en Ollama (LM Studio no tiene API de unload)
+- **Soporte para Ollama** — nuevo proveedor local con API REST compatible
+  - `OLLAMA_BASE_URL` añadido a `settings.cfg.example`
+- Nuevo módulo `core/llm_manager.py` con toda la lógica de gestión de proveedores

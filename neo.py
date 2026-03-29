@@ -655,6 +655,192 @@ def run_telegram(stop_event: threading.Event = None):
         n = cron_clear()
         await update.message.reply_text(f"🗑️ {n} tarea(s) eliminada(s).")
 
+
+    async def cmd_motorllm(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handler para /motorllm <proveedor> — cambia el proveedor LLM en caliente."""
+        if not is_allowed(update.effective_user.id):
+            await update.message.reply_text("⛔ No tienes acceso a este bot.")
+            return
+
+        from core.llm_manager import set_provider, ALL_PROVIDERS, LOCAL_PROVIDERS, get_current_provider, get_current_model
+
+        provider = context.args[0].lower().strip() if context.args else ""
+
+        if not provider:
+            current = get_current_provider()
+            model = get_current_model()
+            local = sorted(LOCAL_PROVIDERS)
+            remote = sorted(ALL_PROVIDERS - LOCAL_PROVIDERS)
+            await update.message.reply_text(
+                f"<b>🔧 Proveedor LLM actual:</b> <code>{current}</code>\n"
+                f"<b>Modelo:</b> <code>{model or '(no definido)'}</code>\n\n"
+                f"<b>Proveedores locales:</b> {', '.join(f'<code>{p}</code>' for p in local)}\n"
+                f"<b>Proveedores remotos:</b> {', '.join(f'<code>{p}</code>' for p in remote)}\n\n"
+                f"Uso: <code>/motorllm &lt;proveedor&gt;</code>",
+                parse_mode=ParseMode.HTML,
+            )
+            return
+
+        try:
+            set_provider(provider)
+            # Reiniciar agentes para que usen el nuevo proveedor
+            user_agents.clear()
+            await update.message.reply_text(
+                f"✅ Proveedor cambiado a <code>{provider}</code>\n"
+                f"El agente se reiniciará en el próximo mensaje.\n\n"
+                f"{'💡 Usa /listmodels para ver modelos disponibles.' if provider in LOCAL_PROVIDERS else '💡 Usa /load &lt;modelo&gt; para cambiar el modelo.'}",
+                parse_mode=ParseMode.HTML,
+            )
+        except ValueError as e:
+            await update.message.reply_text(f"❌ {e}", parse_mode=ParseMode.HTML)
+
+    async def cmd_listmodels(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handler para /listmodels — lista modelos disponibles."""
+        if not is_allowed(update.effective_user.id):
+            await update.message.reply_text("⛔ No tienes acceso a este bot.")
+            return
+
+        from core.llm_manager import (
+            get_current_provider, is_local, list_models_local,
+            get_remote_model_examples, format_size
+        )
+
+        provider = get_current_provider()
+        await update.message.chat.send_action(ChatAction.TYPING)
+
+        if is_local(provider):
+            try:
+                models = list_models_local(provider)
+                if not models:
+                    await update.message.reply_text(
+                        f"📭 No hay modelos disponibles en {provider}.\n"
+                        f"Asegúrate de que el servidor está activo.",
+                        parse_mode=ParseMode.HTML,
+                    )
+                    return
+
+                lines = [f"<b>📦 Modelos en {provider} ({len(models)})</b>\n"]
+                for m in models:
+                    loaded_icon = "🟢" if m.get("loaded") else "⚪"
+                    size = f"  {format_size(m['size'])}" if m.get("size") else ""
+                    lines.append(f"{loaded_icon} <code>{m['id']}</code>{size}")
+                lines.append("\n🟢 En memoria  ⚪ Disponible")
+                lines.append("Usa <code>/load &lt;modelo&gt;</code> para cargar uno.")
+                await _send_long(update, "\n".join(lines), ParseMode.HTML)
+
+            except requests.exceptions.ConnectionError:
+                await update.message.reply_text(
+                    f"❌ No se puede conectar a {provider}.\n"
+                    f"¿Está el servidor activo?",
+                    parse_mode=ParseMode.HTML,
+                )
+            except Exception as e:
+                await update.message.reply_text(f"❌ Error: {str(e)[:200]}", parse_mode=ParseMode.HTML)
+
+        else:
+            # Proveedor remoto — mostrar ejemplos
+            examples = get_remote_model_examples(provider)
+            current_model = os.getenv("LLM_MODEL", "")
+            lines = [
+                f"<b>🌐 Modelos de {provider}</b>\n",
+                f"<b>Modelo actual:</b> <code>{current_model or '(no definido)'}</code>\n",
+                "<b>Modelos populares:</b>\n",
+            ]
+            for m in examples:
+                icon = "✅" if m == current_model else "  "
+                lines.append(f"{icon} <code>{m}</code>")
+            lines.append(f"\nUsa <code>/load &lt;modelo&gt;</code> para cambiar.\n"
+                         f"Catálogo completo en <a href=\"https://openrouter.ai/models\">openrouter.ai/models</a>"
+                         if provider == "openrouter" else "")
+            await _send_long(update, "\n".join(lines), ParseMode.HTML)
+
+    async def cmd_load(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handler para /load <modelo> — carga un modelo."""
+        if not is_allowed(update.effective_user.id):
+            await update.message.reply_text("⛔ No tienes acceso a este bot.")
+            return
+
+        from core.llm_manager import (
+            get_current_provider, is_local, load_model_local, set_model
+        )
+
+        model = " ".join(context.args).strip() if context.args else ""
+        if not model:
+            await update.message.reply_text(
+                "❌ Uso: <code>/load &lt;nombre_modelo&gt;</code>\n\n"
+                "Ejemplos:\n"
+                "  <code>/load qwen2.5-7b-instruct</code>\n"
+                "  <code>/load anthropic/claude-3.5-sonnet</code>",
+                parse_mode=ParseMode.HTML,
+            )
+            return
+
+        provider = get_current_provider()
+        await update.message.chat.send_action(ChatAction.TYPING)
+        await update.message.reply_text(
+            f"⏳ Cargando <code>{model}</code> en <code>{provider}</code>...",
+            parse_mode=ParseMode.HTML,
+        )
+
+        try:
+            if is_local(provider):
+                result = load_model_local(model, provider)
+            else:
+                result = f"✅ Modelo cambiado a <code>{model}</code> en {provider}"
+
+            set_model(model)
+            user_agents.clear()  # Reiniciar agentes con el nuevo modelo
+
+            await update.message.reply_text(
+                f"{result}\nEl agente usará este modelo en el próximo mensaje.",
+                parse_mode=ParseMode.HTML,
+            )
+
+        except requests.exceptions.ConnectionError:
+            await update.message.reply_text(
+                f"❌ No se puede conectar a {provider}.\n¿Está el servidor activo?",
+                parse_mode=ParseMode.HTML,
+            )
+        except Exception as e:
+            await update.message.reply_text(f"❌ Error: {str(e)[:300]}", parse_mode=ParseMode.HTML)
+
+    async def cmd_unload(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handler para /unload <modelo> — descarga un modelo de memoria."""
+        if not is_allowed(update.effective_user.id):
+            await update.message.reply_text("⛔ No tienes acceso a este bot.")
+            return
+
+        from core.llm_manager import get_current_provider, is_local, unload_model_local
+
+        provider = get_current_provider()
+
+        if not is_local(provider):
+            await update.message.reply_text(
+                f"⚠️ <code>{provider}</code> es un proveedor remoto.\n"
+                "El unload solo aplica a proveedores locales (lmstudio, ollama).",
+                parse_mode=ParseMode.HTML,
+            )
+            return
+
+        model = " ".join(context.args).strip() if context.args else os.getenv("LLM_MODEL", "")
+        if not model:
+            await update.message.reply_text(
+                "❌ Uso: <code>/unload &lt;modelo&gt;</code>",
+                parse_mode=ParseMode.HTML,
+            )
+            return
+
+        try:
+            result = unload_model_local(model, provider)
+            await update.message.reply_text(result, parse_mode=ParseMode.HTML)
+        except requests.exceptions.ConnectionError:
+            await update.message.reply_text(
+                f"❌ No se puede conectar a {provider}.",
+                parse_mode=ParseMode.HTML,
+            )
+        except Exception as e:
+            await update.message.reply_text(f"❌ Error: {str(e)[:300]}", parse_mode=ParseMode.HTML)
+
     # ── Construir app ──────────────────────────────────────────────────────────
 
     app = Application.builder().token(token).build()
@@ -667,7 +853,11 @@ def run_telegram(stop_event: threading.Event = None):
     app.add_handler(CommandHandler("cron",       cmd_cron))
     app.add_handler(CommandHandler("cronlist",   cmd_cronlist))
     app.add_handler(CommandHandler("crondel",    cmd_crondel))
-    app.add_handler(CommandHandler("cronclear",  cmd_cronclear))
+    app.add_handler(CommandHandler("cronclear",   cmd_cronclear))
+    app.add_handler(CommandHandler("motorllm",    cmd_motorllm))
+    app.add_handler(CommandHandler("listmodels",  cmd_listmodels))
+    app.add_handler(CommandHandler("load",        cmd_load))
+    app.add_handler(CommandHandler("unload",      cmd_unload))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, handle_voice))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
@@ -683,7 +873,11 @@ def run_telegram(stop_event: threading.Event = None):
             BotCommand("cron",       "Añadir tarea programada"),
             BotCommand("cronlist",   "Ver tareas programadas"),
             BotCommand("crondel",    "Eliminar tarea por ID"),
-            BotCommand("cronclear",  "Borrar todas las tareas"),
+            BotCommand("cronclear",    "Borrar todas las tareas"),
+            BotCommand("motorllm",     "Cambiar proveedor LLM"),
+            BotCommand("listmodels",   "Listar modelos disponibles"),
+            BotCommand("load",         "Cargar o cambiar modelo"),
+            BotCommand("unload",       "Descargar modelo de memoria"),
         ])
         # Arrancar el scheduler de crons
         from core.cron import cron_loop
