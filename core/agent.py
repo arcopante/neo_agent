@@ -78,16 +78,42 @@ def _get_llm():
     elif provider == "lmstudio":
         from langchain_openai import ChatOpenAI
         base_url = os.getenv("LMSTUDIO_BASE_URL", "http://localhost:1234/v1")
-        model = os.getenv("LLM_MODEL", "local-model")
+        model = os.getenv("LLM_MODEL", "").strip()
+
+        # Si no hay modelo definido, detectar el cargado en LM Studio
+        if not model:
+            try:
+                import requests as _req
+                resp = _req.get(base_url.rstrip("/").removesuffix("/v1") + "/v1/models", timeout=3)
+                data = resp.json().get("data", [])
+                model = data[0]["id"] if data else "local-model"
+                print(f"🔍 LM Studio: modelo detectado '{model}'")
+            except Exception:
+                model = "local-model"
+
         if os.getenv("LMSTUDIO_TOOL_MODE", "auto").lower() == "prompt":
             _warn_tool_mode()
-        return ChatOpenAI(
+
+        # Algunos modelos locales no soportan tool calling nativo.
+        # LM Studio_TOOL_CALLING=false deshabilita el binding de herramientas
+        # y deja que el agente funcione solo con el prompt del sistema.
+        tool_calling = os.getenv("LMSTUDIO_TOOL_CALLING", "true").lower() != "false"
+
+        llm = ChatOpenAI(
             model=model,
             base_url=base_url,
             api_key="lm-studio",
             temperature=float(os.getenv("LLM_TEMPERATURE", "0.3")),
             max_tokens=int(os.getenv("LLM_MAX_TOKENS", "2048")),
         )
+
+        if not tool_calling:
+            # Sin tool calling: devolver LLM sin bind_tools
+            # El agente usará el LLM directamente sin herramientas
+            print("⚠️  LMSTUDIO_TOOL_CALLING=false — herramientas desactivadas")
+            return llm
+
+        return llm
 
     elif provider == "ollama":
         from langchain_openai import ChatOpenAI
@@ -226,6 +252,8 @@ class NeoAgent:
 def create_agent() -> NeoAgent:
     """
     Crea y configura el agente NEO completo.
+    Detecta automáticamente si el proveedor es local y ajusta
+    el system prompt y la ventana de contexto en consecuencia.
     """
     sys.path.insert(0, str(ROOT))
     from core.config_loader import build_system_prompt, get_user_preferences
@@ -234,14 +262,43 @@ def create_agent() -> NeoAgent:
     llm = _get_llm()
     prefs = get_user_preferences()
 
-    tools_list = "\n".join([f"- {t.name}: {t.description[:80]}..." for t in ALL_TOOLS])
-    system_prompt = build_system_prompt(tools_list=tools_list)
+    provider = os.getenv("LLM_PROVIDER", "openrouter").lower()
+    is_local = provider in ("lmstudio", "ollama")
 
-    window_size = int(os.getenv("MEMORY_WINDOW", "20"))
+    if is_local:
+        # Modo compacto: prompt mínimo y ventana reducida
+        system_prompt = build_system_prompt(compact=True)
+        window_size = int(os.getenv("MEMORY_WINDOW_LOCAL", "4"))
+
+        # Detectar soporte de tool calling solo si no está forzado en settings
+        tool_calling_cfg = os.getenv("LMSTUDIO_TOOL_CALLING", "auto").lower()
+        if tool_calling_cfg == "auto":
+            from core.llm_manager import probe_tool_calling
+            print(f"🔍 Comprobando soporte de tool calling en {provider}...")
+            supports_tools = probe_tool_calling(provider)
+        elif tool_calling_cfg == "false":
+            supports_tools = False
+        else:
+            supports_tools = True
+
+        if supports_tools:
+            print(f"✅ {provider}: tool calling soportado")
+            active_tools = ALL_TOOLS
+        else:
+            print(f"⚠️  {provider}: tool calling NO soportado — modo chat simple")
+            active_tools = []  # Sin herramientas
+
+        print(f"⚙️  Modo local ({provider}): ventana={window_size}, tools={len(active_tools)}")
+    else:
+        # Modo completo para modelos remotos
+        tools_list = "\n".join([f"- {t.name}: {t.description[:80]}..." for t in ALL_TOOLS])
+        system_prompt = build_system_prompt(tools_list=tools_list)
+        window_size = int(os.getenv("MEMORY_WINDOW", "15"))
+        active_tools = ALL_TOOLS
 
     return NeoAgent(
         llm=llm,
-        tools=ALL_TOOLS,
+        tools=active_tools,
         system_prompt=system_prompt,
         window_size=window_size,
     )

@@ -274,10 +274,14 @@ def run_telegram(stop_event: threading.Event = None):
     user_agents: dict = {}
     user_sessions: dict = {}
 
-    def get_agent(user_id: int):
+    async def get_agent(user_id: int):
         if user_id not in user_agents:
             from core.agent import create_agent
-            user_agents[user_id] = create_agent()
+            # Ejecutar create_agent en un hilo para no bloquear el event loop
+            # (probe_tool_calling hace peticiones HTTP síncronas)
+            user_agents[user_id] = await asyncio.get_event_loop().run_in_executor(
+                None, create_agent
+            )
             user_sessions[user_id] = []
         return user_agents[user_id]
 
@@ -321,7 +325,7 @@ def run_telegram(stop_event: threading.Event = None):
             await update.message.reply_text("⛔ No tienes acceso a este bot.")
             return
         await update.message.chat.send_action(ChatAction.TYPING)
-        agent = get_agent(update.effective_user.id)
+        agent = await get_agent(update.effective_user.id)
         try:
             result = agent.invoke({"input": "lista todos mis recuerdos guardados en memoria"})
             text = _md_to_html(result.get("output", "No hay recuerdos guardados."))
@@ -382,8 +386,11 @@ def run_telegram(stop_event: threading.Event = None):
         if not user_input:
             return
 
+        # Mostrar "Pensando..." inmediatamente y mantener typing activo
+        thinking_msg = await update.message.reply_text("💭 Pensando...")
         await update.message.chat.send_action(ChatAction.TYPING)
-        agent = get_agent(uid)
+
+        agent = await get_agent(uid)
         user_sessions[uid].append({"role": "user", "content": user_input})
 
         try:
@@ -397,12 +404,21 @@ def run_telegram(stop_event: threading.Event = None):
                 tools_used = ", ".join(a.tool for a, _ in steps)
                 header = f"<i>🔧 {tools_used}</i>\n\n"
 
-            await _send_long(update, header + _md_to_html(output), ParseMode.HTML)
+            full_response = header + _md_to_html(output)
+
+            # Editar el mensaje "Pensando..." con la respuesta real
+            # Si la respuesta es muy larga, borrar y enviar en partes
+            if len(full_response) <= 4096:
+                await thinking_msg.edit_text(full_response, parse_mode=ParseMode.HTML)
+            else:
+                await thinking_msg.delete()
+                await _send_long(update, full_response, ParseMode.HTML)
+
             user_sessions[uid].append({"role": "assistant", "content": output})
 
         except Exception as e:
             logger.error(f"Error usuario {uid}: {e}", exc_info=True)
-            await update.message.reply_text(
+            await thinking_msg.edit_text(
                 f"❌ <b>Error:</b> <code>{str(e)[:400]}</code>\n\n"
                 "Revisa tu API key y el modelo en config/settings.cfg",
                 parse_mode=ParseMode.HTML,
@@ -418,13 +434,14 @@ def run_telegram(stop_event: threading.Event = None):
             await update.message.reply_text("⛔ No tienes acceso a este bot.")
             return
 
+        thinking_msg = await update.message.reply_text("🎙️ Transcribiendo audio...")
         await update.message.chat.send_action(ChatAction.TYPING)
 
         try:
             import tempfile, os as _os
             voice = update.message.voice or update.message.audio
             if not voice:
-                await update.message.reply_text("❌ No se pudo obtener el audio.")
+                await thinking_msg.edit_text("❌ No se pudo obtener el audio.")
                 return
 
             # Descargar el archivo de voz
@@ -461,14 +478,15 @@ def run_telegram(stop_event: threading.Event = None):
                 await update.message.reply_text("⚠️ No se detectó habla en el audio.")
                 return
 
-            # Confirmar transcripción
-            await update.message.reply_text(
+            # Mostrar transcripción y pasar a "Pensando..."
+            await thinking_msg.edit_text(
                 f"🎙️ <i>Transcripción:</i> {transcription}",
                 parse_mode=ParseMode.HTML,
             )
+            thinking_msg2 = await update.message.reply_text("💭 Pensando...")
 
             # Procesar como mensaje normal
-            agent = get_agent(uid)
+            agent = await get_agent(uid)
             user_sessions[uid].append({"role": "user", "content": transcription})
 
             result = await asyncio.get_event_loop().run_in_executor(
@@ -477,7 +495,14 @@ def run_telegram(stop_event: threading.Event = None):
             output = result.get("output", "Sin respuesta.")
             steps = result.get("intermediate_steps", [])
             header = f"<i>🔧 {', '.join(a.tool for a, _ in steps)}</i>\n\n" if steps else ""
-            await _send_long(update, header + _md_to_html(output), ParseMode.HTML)
+            full_response = header + _md_to_html(output)
+
+            if len(full_response) <= 4096:
+                await thinking_msg2.edit_text(full_response, parse_mode=ParseMode.HTML)
+            else:
+                await thinking_msg2.delete()
+                await _send_long(update, full_response, ParseMode.HTML)
+
             user_sessions[uid].append({"role": "assistant", "content": output})
 
         except Exception as e:
@@ -682,15 +707,54 @@ def run_telegram(stop_event: threading.Event = None):
             return
 
         try:
+            from core.llm_manager import LOCAL_PROVIDERS as _LOCAL
             set_provider(provider)
-            # Reiniciar agentes para que usen el nuevo proveedor
+
+            # Si es proveedor local y el modelo actual parece remoto (contiene /),
+            # limpiar para que use el modelo cargado en LM Studio/Ollama
+            current_model = os.getenv("LLM_MODEL", "")
+            if provider in _LOCAL and "/" in current_model:
+                os.environ["LLM_MODEL"] = ""
+                model_note = "\n⚠️ Modelo limpiado (era remoto). Usa /load para cargar uno local."
+            else:
+                model_note = ""
+
+            # Reiniciar agentes
             user_agents.clear()
-            await update.message.reply_text(
-                f"✅ Proveedor cambiado a <code>{provider}</code>\n"
-                f"El agente se reiniciará en el próximo mensaje.\n\n"
-                f"{'💡 Usa /listmodels para ver modelos disponibles.' if provider in LOCAL_PROVIDERS else '💡 Usa /load &lt;modelo&gt; para cambiar el modelo.'}",
-                parse_mode=ParseMode.HTML,
-            )
+
+            # Para proveedores locales, pre-inicializar el agente aquí
+            # con feedback visual, para no bloquear el primer mensaje
+            if provider in _LOCAL:
+                thinking = await update.message.reply_text(
+                    f"⏳ Conectando con <code>{provider}</code> y comprobando soporte de herramientas...",
+                    parse_mode=ParseMode.HTML,
+                )
+                try:
+                    from core.agent import create_agent
+                    uid = update.effective_user.id
+                    user_agents[uid] = await asyncio.get_event_loop().run_in_executor(
+                        None, create_agent
+                    )
+                    user_sessions[uid] = []
+                    n_tools = len(user_agents[uid].tools)
+                    tools_info = f"✅ {n_tools} herramientas activas" if n_tools > 0 else "⚠️ Sin herramientas (modelo no soporta tool calling)"
+                    await thinking.edit_text(
+                        f"✅ Proveedor cambiado a <code>{provider}</code>{model_note}\n"
+                        f"{tools_info}\n\n"
+                        f"💡 Usa /listmodels para ver modelos disponibles.",
+                        parse_mode=ParseMode.HTML,
+                    )
+                except Exception as e:
+                    await thinking.edit_text(
+                        f"❌ Error al conectar con {provider}: <code>{str(e)[:200]}</code>",
+                        parse_mode=ParseMode.HTML,
+                    )
+            else:
+                await update.message.reply_text(
+                    f"✅ Proveedor cambiado a <code>{provider}</code>{model_note}\n\n"
+                    f"💡 Usa /load &lt;modelo&gt; para cambiar el modelo.",
+                    parse_mode=ParseMode.HTML,
+                )
         except ValueError as e:
             await update.message.reply_text(f"❌ {e}", parse_mode=ParseMode.HTML)
 
@@ -890,7 +954,8 @@ def run_telegram(stop_event: threading.Event = None):
                 except Exception as ce:
                     logger.error(f"Error enviando cron msg: {ce}")
         def _get_agent():
-            # Devuelve el agente del primer usuario activo
+            # Devuelve el agente del primer usuario activo (ya creado)
+            # Los crons solo ejecutan si el agente ya fue inicializado
             return next(iter(user_agents.values()), None)
         asyncio.create_task(cron_loop(_send_cron_msg, _get_agent, stop_event))
 

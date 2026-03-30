@@ -29,6 +29,11 @@ OPENROUTER_APP_NAME=NEO Agent
 # ─── LM Studio (si LLM_PROVIDER=lmstudio) ─────────────────────
 LMSTUDIO_BASE_URL=http://localhost:1234/v1
 LMSTUDIO_TOOL_MODE=auto          # auto | prompt
+# Control de tool calling para modelos locales:
+#   auto  → NEO detecta automáticamente si el modelo lo soporta
+#   true  → forzar activado
+#   false → forzar desactivado (modo chat, sin herramientas)
+LMSTUDIO_TOOL_CALLING=auto       # auto | true | false
 
 # ─── Ollama (si LLM_PROVIDER=ollama) ──────────────────────────
 OLLAMA_BASE_URL=http://localhost:11434/v1
@@ -62,9 +67,11 @@ WHISPER_MODEL=small
 CALENDAR_DEFAULT=
 
 # ─── Agente ────────────────────────────────────────────────────
-# Mensajes del historial que se envían en cada petición.
-# Reducir si el modelo da errores de contexto excedido.
+# Mensajes del historial para modelos remotos (OpenRouter, OpenAI, etc.)
 MEMORY_WINDOW=15
+# Mensajes del historial para modelos locales (LM Studio, Ollama)
+# Valor bajo para no saturar el contexto limitado de modelos locales
+MEMORY_WINDOW_LOCAL=4
 AGENT_VERBOSE=false              # true → muestra llamadas a herramientas
 AGENT_DEBUG=false
 AGENT_MAX_ITERATIONS=10

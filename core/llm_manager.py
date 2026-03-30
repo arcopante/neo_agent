@@ -29,6 +29,11 @@ _DEFAULT_URLS = {
     "ollama":   "http://localhost:11434",
 }
 
+
+def _strip_v1(url: str) -> str:
+    """Elimina el sufijo /v1 si existe, para uso en endpoints nativos."""
+    return url.rstrip("/").removesuffix("/v1")
+
 # Modelos de ejemplo para proveedores remotos
 _REMOTE_MODEL_EXAMPLES = {
     "openrouter": [
@@ -69,11 +74,12 @@ def get_current_model() -> str:
     return os.getenv("LLM_MODEL", "")
 
 def get_base_url(provider: str = None) -> str:
+    """Devuelve la URL base sin /v1 para llamadas a endpoints nativos."""
     p = provider or get_current_provider()
     if p == "lmstudio":
-        return os.getenv("LMSTUDIO_BASE_URL", _DEFAULT_URLS["lmstudio"])
+        return _strip_v1(os.getenv("LMSTUDIO_BASE_URL", _DEFAULT_URLS["lmstudio"]))
     elif p == "ollama":
-        return os.getenv("OLLAMA_BASE_URL", _DEFAULT_URLS["ollama"])
+        return _strip_v1(os.getenv("OLLAMA_BASE_URL", _DEFAULT_URLS["ollama"]))
     return ""
 
 def is_local(provider: str = None) -> bool:
@@ -222,3 +228,42 @@ def format_size(bytes_: int) -> str:
             return f"{bytes_:.1f} {unit}"
         bytes_ /= 1024
     return f"{bytes_:.1f} TB"
+
+def probe_tool_calling(provider: str = None) -> bool:
+    """
+    Comprueba si el modelo local soporta tool calling enviando
+    una petición mínima con una herramienta de prueba.
+    Retorna True si soporta tools, False si falla.
+    """
+    p = provider or get_current_provider()
+    base = get_base_url(p)
+
+    test_payload = {
+        "model": os.getenv("LLM_MODEL", "local-model"),
+        "messages": [{"role": "user", "content": "test"}],
+        "tools": [{
+            "type": "function",
+            "function": {
+                "name": "test_tool",
+                "description": "Tool de prueba",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            }
+        }],
+        "max_tokens": 5,
+    }
+
+    try:
+        resp = requests.post(
+            f"{base}/v1/chat/completions",
+            json=test_payload,
+            timeout=10,
+        )
+        # Si devuelve 200 o 400 (sin usar la tool) es compatible
+        return resp.status_code in (200, 400)
+    except Exception:
+        return False
+

@@ -19,27 +19,47 @@ def load_markdown(filename: str) -> str:
     return filepath.read_text(encoding="utf-8").strip()
 
 
-def build_system_prompt(relevant_memories: str = "", tools_list: str = "") -> str:
+def build_system_prompt(
+    relevant_memories: str = "",
+    tools_list: str = "",
+    compact: bool = False,
+) -> str:
     """
-    Construye el prompt de sistema completo combinando todos los ficheros config.
-    
+    Construye el prompt de sistema.
+
     Args:
-        relevant_memories: Memorias relevantes ya recuperadas de long_term.json
+        relevant_memories: Memorias relevantes recuperadas de long_term.json
         tools_list: Lista de herramientas disponibles formateada
-    
+        compact: Si True, genera un prompt mínimo para modelos con contexto reducido
+                 (LM Studio, Ollama con modelos pequeños)
+
     Returns:
         Prompt de sistema listo para enviar al LLM.
     """
-    soul = load_markdown("SOUL.md")
+    now = datetime.now().strftime("%d/%m/%Y %H:%M")
+
+    if compact:
+        # Prompt mínimo para modelos locales con contexto limitado (~500 tokens)
+        prompt = f"""Eres NEO, agente de IA con herramientas reales.
+Fecha: {now}
+
+Reglas:
+- Usa herramientas cuando el usuario lo pida.
+- Responde en el idioma del usuario.
+- Si algo falla, explica qué pasó.
+
+{f"Recuerdos: {relevant_memories[:300]}" if relevant_memories else ""}
+"""
+        return prompt.strip()
+
+    # Prompt completo para modelos remotos con contexto amplio
+    soul     = load_markdown("SOUL.md")
     identity = load_markdown("IDENTITY.md")
-    user = load_markdown("USER.md")
+    user     = load_markdown("USER.md")
 
-    # Extraer secciones relevantes de los docs más largos
-    soul_excerpt = _extract_section(soul, max_chars=800)
+    soul_excerpt     = _extract_section(soul,     max_chars=800)
     identity_excerpt = _extract_section(identity, max_chars=600)
-    user_excerpt = _extract_section(user, max_chars=500)
-
-    now = datetime.now().strftime("%A, %d de %B de %Y — %H:%M")
+    user_excerpt     = _extract_section(user,     max_chars=500)
 
     prompt = f"""Eres NEO, un agente de IA con capacidad de acción real mediante herramientas.
 
