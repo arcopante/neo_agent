@@ -132,3 +132,27 @@ pip install openai-whisper
 - **Soporte para Ollama** — nuevo proveedor local con API REST compatible
   - `OLLAMA_BASE_URL` añadido a `settings.cfg.example`
 - Nuevo módulo `core/llm_manager.py` con toda la lógica de gestión de proveedores
+
+## [1.5.0] - 2026-04-04
+
+### Añadido
+
+- **`💭 Pensando...`** — mensaje de feedback inmediato en Telegram mientras el agente procesa. Se edita con la respuesta final en el mismo globo, sin mensajes extra
+- **Handler de voz mejorado** — muestra `🎙️ Transcribiendo audio...` durante la transcripción y `💭 Pensando...` mientras genera la respuesta
+- **Detección automática de tool calling** — al usar proveedores locales (LM Studio, Ollama), NEO prueba si el modelo soporta herramientas y se adapta automáticamente sin configuración manual (`LMSTUDIO_TOOL_CALLING=auto`)
+- **`/motorllm` pre-inicializa el agente** — al cambiar a proveedor local muestra feedback en tiempo real con el resultado de la detección de herramientas
+- **Soporte Ollama completo** — lista, carga y descarga de modelos via API REST
+- **Modo compacto automático para modelos locales** — system prompt reducido (~100 tokens) y ventana de historial de 4 mensajes para modelos con contexto limitado
+- **`MEMORY_WINDOW_LOCAL`** — ventana de historial independiente para proveedores locales
+- **`get_agent` async** — la inicialización del agente ya no bloquea el event loop de Telegram
+
+### Corregido
+
+- **Doble `/v1` en LM Studio** — `get_base_url()` en `llm_manager.py` elimina el sufijo `/v1` antes de construir URLs de la API REST
+- **Modelo remoto en proveedor local** — al cambiar a lmstudio/ollama se limpia automáticamente un modelo remoto (que contenga `/`) para evitar errores
+- **Auto-detección del modelo en LM Studio** — si `LLM_MODEL` está vacío consulta `/v1/models` y usa el primero disponible
+- **Warning `NotOpenSSLWarning` de urllib3** — silenciado en `neo.py`, no afecta a instalaciones con Python 3.9
+
+### Mejorado
+
+- **`setup.sh`** — si detecta Python < 3.11 muestra instrucciones detalladas de actualización con `pyenv` y pregunta si continuar igualmente

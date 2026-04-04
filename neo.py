@@ -27,6 +27,8 @@ logging.getLogger("telegram").setLevel(logging.WARNING)
 import warnings
 warnings.filterwarnings("ignore", message="resource_tracker")
 warnings.filterwarnings("ignore", message="FP16 is not supported on CPU")
+warnings.filterwarnings("ignore", message=".*NotOpenSSLWarning.*")
+warnings.filterwarnings("ignore", category=Warning, module="urllib3")
 
 
 # ══════════════════════════════════════════════════════════════════════════════

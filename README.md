@@ -15,9 +15,9 @@
 
 ---
 
-NEO es un agente de IA personal que entiende lenguaje natural y ejecuta acciones reales sobre el sistema: busca en internet, gestiona archivos, corre código, analiza imágenes, transcribe voz, controla el portapapeles, envía ficheros por Telegram, crea eventos y notas en macOS, ejecuta tareas programadas y recuerda cosas entre sesiones.
+NEO es un agente de IA personal que entiende lenguaje natural y ejecuta acciones reales: busca en internet, gestiona archivos, analiza imágenes, transcribe voz, crea eventos y notas en macOS, ejecuta tareas programadas y recuerda cosas entre sesiones.
 
-Funciona con cualquier modelo de lenguaje vía **OpenRouter**, **OpenAI**, **Anthropic**, **Google**, **LM Studio** u **Ollama**. El proveedor y el modelo se pueden cambiar en caliente desde Telegram sin reiniciar. Toda la configuración vive en `config/settings.cfg`.
+Funciona con cualquier modelo vía **OpenRouter**, **OpenAI**, **Anthropic**, **Google**, **LM Studio** u **Ollama**. El proveedor y el modelo se pueden cambiar en caliente desde Telegram. Toda la configuración vive en `config/settings.cfg`.
 
 > **Desarrollado para macOS.** Las herramientas de Calendario, Notas y notificaciones del sistema usan AppleScript y no funcionarán en Linux.
 
@@ -25,30 +25,28 @@ Funciona con cualquier modelo de lenguaje vía **OpenRouter**, **OpenAI**, **Ant
 
 ## Características
 
-- **Multi-modelo y multi-proveedor** — OpenRouter, OpenAI, Anthropic, Google, LM Studio y Ollama. Cambia proveedor y modelo en caliente desde Telegram con `/motorllm` y `/load`
+- **Multi-modelo y multi-proveedor** — OpenRouter, OpenAI, Anthropic, Google, LM Studio y Ollama. Cambia proveedor y modelo en caliente con `/motorllm` y `/load`
+- **Detección automática de capacidades** — en modelos locales, NEO detecta si soportan tool calling y se adapta sin configuración manual
 - **32 herramientas reales** — sistema, archivos, shell, visión, voz, búsqueda web, HTTP, código Python, calculadora, portapapeles, navegador, Telegram, Calendario y Notas de macOS
-- **Tareas programadas (crons)** — programa notificaciones, consultas al LLM o scripts de shell con `/cron`. Persisten entre reinicios
-- **Acceso completo al sistema** — lista, busca, copia, mueve, comprime y elimina ficheros en cualquier ruta
+- **Tareas programadas (crons)** — programa notificaciones, consultas al LLM o scripts con `/cron`. Persisten entre reinicios
 - **Visión** — analiza imágenes enviadas por Telegram o rutas locales con modelos multimodales
-- **Voz con Whisper local** — transcribe mensajes de voz de Telegram. Acelerado por GPU en Apple Silicon con mlx-whisper
-- **Notificaciones proactivas** — avisa vía banner de macOS y Telegram cuando termina una tarea
-- **Calendario y Notas de macOS** — lee, crea y busca eventos y notas usando AppleScript nativo
+- **Voz con Whisper local** — transcribe mensajes de voz. Acelerado por GPU en Apple Silicon con `mlx-whisper`
+- **Feedback en tiempo real** — muestra `💭 Pensando...` mientras procesa y lo reemplaza con la respuesta
+- **Notificaciones proactivas** — avisa vía banner macOS y Telegram cuando termina una tarea
+- **Calendario y Notas macOS** — lee, crea y busca eventos y notas via AppleScript nativo
 - **Memoria persistente** — recuerda preferencias y contexto entre sesiones
-- **Dos interfaces** — terminal interactiva y bot de Telegram, pueden correr simultáneamente
-- **Personalizable sin código** — edita ficheros Markdown en `config/` para cambiar la personalidad
+- **Dos interfaces** — terminal interactiva y bot de Telegram simultáneamente
 
 ---
 
 ## Requisitos
 
-- Python 3.11+
+- Python 3.11+ (recomendado; funciona con 3.9 con warnings menores)
 - API key de [OpenRouter](https://openrouter.ai) u otro proveedor, o LM Studio/Ollama en local
-- Token de Telegram (opcional, para el bot)
+- Token de Telegram (opcional)
 - `ffmpeg` para transcripción de voz: `brew install ffmpeg`
-- Whisper para voz local — el setup pregunta qué backend instalar:
-  - Apple Silicon: `pip install mlx-whisper` ⚡
-  - CPU: `pip install openai-whisper`
-- [`uv`](https://github.com/astral-sh/uv) para gestión de dependencias (se instala automáticamente)
+- Whisper (opcional): `pip install mlx-whisper` (Apple Silicon) o `pip install openai-whisper` (CPU)
+- [`uv`](https://github.com/astral-sh/uv) — se instala automáticamente con `setup.sh`
 
 ---
 
@@ -81,21 +79,6 @@ bash start.sh telegram     # Solo bot de Telegram
 bash start.sh ambos        # Terminal + Telegram simultáneamente
 ```
 
-### Ejemplos de conversación
-
-```
-¿cuánta RAM libre tengo ahora mismo?
-lista el contenido de ~/Desktop
-busca todos los archivos .pdf en ~/Documents
-comprime la carpeta proyectos/ en un zip
-envíame el archivo log.txt por Telegram
-¿qué reuniones tengo esta semana?
-crea una nota "Ideas proyecto" con este contenido
-avísame cuando termines esta tarea larga
-busca las últimas noticias sobre LangGraph
-¿cuánto es el 21% de IVA sobre 3.450€?
-```
-
 ### Comandos de terminal
 
 | Comando | Acción |
@@ -124,20 +107,20 @@ busca las últimas noticias sobre LangGraph
 ### Gestión del LLM
 | Comando | Descripción |
 |---|---|
-| `/motorllm` | Ver proveedor actual |
+| `/motorllm` | Ver proveedor y modelo actuales |
 | `/motorllm <proveedor>` | Cambiar proveedor (openrouter, openai, anthropic, google, lmstudio, ollama) |
 | `/listmodels` | Listar modelos disponibles |
 | `/load <modelo>` | Cargar o cambiar modelo |
 | `/unload <modelo>` | Descargar modelo de memoria (local) |
 
-### Tareas programadas (Crons)
+### Tareas programadas
 | Comando | Descripción |
 |---|---|
 | `/cron <horario> <texto>` | 🔔 Notificación de texto fijo |
 | `/cron <horario> llm: <prompt>` | 🤖 El LLM genera el mensaje |
-| `/cron <horario> shell: <cmd>` | ⚙️ Ejecuta un comando o script |
+| `/cron <horario> shell: <cmd>` | ⚙️ Ejecuta un comando |
 | `/cronlist` | Ver todas las tareas |
-| `/crondel <ID>` | Eliminar tarea por ID |
+| `/crondel <ID>` | Eliminar tarea |
 | `/cronclear` | Borrar todas las tareas |
 
 **Formatos de horario:** `09:00` (diario), `*/30m` (cada 30 min), `*/2h` (cada 2 horas)
@@ -176,7 +159,7 @@ busca las últimas noticias sobre LangGraph
 ### 👁️ Visión
 | Herramienta | Descripción |
 |---|---|
-| `analyze_image` | Analiza imágenes (ruta local o URL) con modelos multimodales |
+| `analyze_image` | Analiza imágenes con modelos multimodales |
 
 ### 🎙️ Voz
 | Herramienta | Descripción |
@@ -210,7 +193,7 @@ busca las últimas noticias sobre LangGraph
 ### 📅 Calendario macOS
 | Herramienta | Descripción |
 |---|---|
-| `calendar_list_all` | Lista todos los calendarios disponibles ⚠️ macOS |
+| `calendar_list_all` | Lista todos los calendarios ⚠️ macOS |
 | `calendar_list` | Lista próximos eventos ⚠️ macOS |
 | `calendar_add_event` | Crea eventos ⚠️ macOS |
 
@@ -235,27 +218,33 @@ busca las últimas noticias sobre LangGraph
 Todo en `config/settings.cfg` (en `.gitignore`, nunca se sube al repo).
 
 ```ini
-# ── Proveedor ──────────────────────────────────────
-LLM_PROVIDER=openrouter       # openrouter | openai | anthropic | google | lmstudio | ollama
+# ── Proveedor ──────────────────────────────────────────────────
+LLM_PROVIDER=openrouter    # openrouter | openai | anthropic | google | lmstudio | ollama
 OPENROUTER_API_KEY=sk-or-v1-XXXXXXXX
 LLM_MODEL=anthropic/claude-3.5-sonnet
 
-# ── Parámetros del modelo ──────────────────────────
+# ── Parámetros ─────────────────────────────────────────────────
 LLM_TEMPERATURE=0.3
 LLM_MAX_TOKENS=2048
 
-# ── Telegram (opcional) ────────────────────────────
+# ── Telegram ───────────────────────────────────────────────────
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_ALLOWED_USERS=
 
-# ── Voz ────────────────────────────────────────────
-WHISPER_MODEL=small           # tiny | base | small | medium | large
+# ── Voz ────────────────────────────────────────────────────────
+WHISPER_MODEL=small        # tiny | base | small | medium | large
 
-# ── macOS ──────────────────────────────────────────
-CALENDAR_DEFAULT=Trabajo      # Calendario por defecto para crear eventos
+# ── macOS ──────────────────────────────────────────────────────
+CALENDAR_DEFAULT=          # Nombre exacto del calendario por defecto
 
-# ── Agente ─────────────────────────────────────────
-MEMORY_WINDOW=15
+# ── Proveedores locales ────────────────────────────────────────
+LMSTUDIO_BASE_URL=http://localhost:1234/v1
+LMSTUDIO_TOOL_CALLING=auto # auto | true | false
+OLLAMA_BASE_URL=http://localhost:11434/v1
+
+# ── Agente ─────────────────────────────────────────────────────
+MEMORY_WINDOW=15           # Historial para modelos remotos
+MEMORY_WINDOW_LOCAL=4      # Historial para modelos locales
 AGENT_VERBOSE=false
 AGENT_MAX_ITERATIONS=10
 ```
@@ -271,6 +260,15 @@ AGENT_MAX_ITERATIONS=10
 | `lmstudio` | Local | `LMSTUDIO_BASE_URL` |
 | `ollama` | Local | `OLLAMA_BASE_URL` |
 
+### Modelos locales recomendados (tool calling)
+
+| Modelo | Tool calling |
+|---|---|
+| Qwen2.5 7B Instruct | ✅ Excelente |
+| Llama 3.1 8B Instruct | ✅ Bueno |
+| Mistral 7B Instruct v0.3 | ✅ Bueno |
+| Ministral 3B | ❌ No soportado |
+
 ---
 
 ## Estructura del proyecto
@@ -284,7 +282,7 @@ neo_agent/
 │
 ├── config/
 │   ├── settings.cfg           ← ⚙️ Tu configuración (en .gitignore)
-│   ├── settings.cfg.example   ← Plantilla
+│   ├── settings.cfg.example   ← Plantilla con todos los parámetros
 │   ├── SOUL.md                ← Personalidad del agente
 │   ├── IDENTITY.md            ← Nombre y capacidades
 │   ├── USER.md                ← Tu perfil y preferencias

@@ -24,8 +24,23 @@ fi
 PYTHON_VERSION=$(python3 --version 2>&1 | awk '{print $2}')
 PYTHON_MINOR=$(echo "$PYTHON_VERSION" | cut -d. -f2)
 if [ "$PYTHON_MINOR" -lt 11 ]; then
-    echo "⚠️  Python $PYTHON_VERSION detectado. Se recomienda 3.11+."
-    echo "   Instálalo con: brew install python@3.11 && pyenv global 3.11"
+    echo ""
+    echo "⚠️  Python $PYTHON_VERSION detectado."
+    echo "   NEO requiere Python 3.11+ para funcionar correctamente."
+    echo "   Con Python 3.9 verás warnings de SSL que no afectan al funcionamiento,"
+    echo "   pero se recomienda actualizar:"
+    echo ""
+    echo "   brew install pyenv"
+    echo "   pyenv install 3.11"
+    echo "   pyenv global 3.11"
+    echo "   # Añade esto a ~/.zshrc:"
+    echo "   # eval \"\$(pyenv init -)\""
+    echo ""
+    read -r -p "   ¿Continuar igualmente con Python $PYTHON_VERSION? [s/N] " CONTINUE_OLD
+    if [[ ! "$CONTINUE_OLD" =~ ^[sS]$ ]]; then
+        echo "   Instalación cancelada. Actualiza Python primero."
+        exit 1
+    fi
 fi
 echo "   ✅ Python $PYTHON_VERSION"
 
